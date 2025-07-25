@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Dental Decision Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+        }
+        #app-container {
+            height: 550px; /* Fixed height for the content area */
+            position: relative;
+        }
+        .tool-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s;
+        }
+        .tool-hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .step-card {
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* Changed from center to flex-start */
+            padding-top: 2rem; /* Added padding to push content down */
+        }
+        .step-hidden {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+        .option-btn {
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #e5e7eb; /* gray-200 */
+        }
+        .option-btn:hover {
+            transform: translateY(-2px);
+            border-color: #284766; /* blue-500 */
+            background-color: #eff6ff; /* blue-50 */
+        }
+        .option-key {
+            border: 1px solid #9ca3af; /* gray-400 */
+            color: #4b5563; /* gray-600 */
+            font-weight: 600;
+            font-size: 0.8rem;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            border-radius: 4px;
+        }
+        .option-btn:hover .option-key {
+            background-color: #284766;
+            color: white;
+            border-color: #284766;
+        }
+        #progress-bar {
+            transition: width 0.4s ease-in-out;
+        }
+        .result-card {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-btn {
+            transition: opacity 0.3s;
+        }
+        /* Toggle Switch */
+        .toggle-btn {
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+        }
+        .toggle-btn.active {
+            background-color: #3ccbb1; /* blue-600 */
+            color: white;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-3xl bg-white rounded-2xl shadow-xl p-6 md:p-8">
+        
+        <!-- Toggle Switch -->
+        <div class="mb-6 flex justify-center">
+            <div class="inline-flex rounded-lg bg-gray-200 p-1">
+                <button id="toggle-prophylaxis" onclick="switchTool('prophylaxis')" class="toggle-btn px-6 py-2 rounded-md font-semibold text-gray-700">Prophylaxis</button>
+                <button id="toggle-treatment" onclick="switchTool('treatment')" class="toggle-btn px-6 py-2 rounded-md font-semibold text-gray-700">Treatment</button>
+            </div>
+        </div>
+
+        <div id="app-container">
+            <!-- Prophylaxis Tool Container -->
+            <div id="prophylaxis-tool" class="tool-container tool-hidden">
+                <!-- Prophylaxis Steps will be injected here by JS -->
+            </div>
+
+            <!-- Treatment Tool Container -->
+            <div id="treatment-tool" class="tool-container tool-hidden">
+                <!-- Treatment Steps will be injected here by JS -->
+            </div>
+        </div>
+
+        <!-- Footer with Progress Bar and Navigation -->
+        <div id="footer" class="pt-4 border-t">
+            <div class="flex justify-between items-center mb-2">
+                <div>
+                    <button id="back-btn" onclick="goBack()" class="nav-btn text-gray-500 hover:text-gray-800 font-medium opacity-0 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        Back
+                    </button>
+                </div>
+                <div id="progress-text" class="text-sm text-gray-500"></div>
+                <button id="reset-btn" onclick="resetCurrentTool()" class="nav-btn text-blue-600 hover:text-blue-800 font-medium opacity-0">Start Over</button>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="progress-bar" class="bg-blue-600 h-2 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const prophylaxisContainer = document.getElementById('prophylaxis-tool');
+        const treatmentContainer = document.getElementById('treatment-tool');
+        const backBtn = document.getElementById('back-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const copyBtn = document.getElementById('copy-btn');
+        const toggleProphylaxisBtn = document.getElementById('toggle-prophylaxis');
+        const toggleTreatmentBtn = document.getElementById('toggle-treatment');
+
+        // --- State Management ---
+        let activeTool = '';
+        let prophylaxisState = {};
+        let treatmentState = {};
+        const toolConfig = {
+            prophylaxis: { totalSteps: 3, state: prophylaxisState, container: prophylaxisContainer },
+            treatment: { totalSteps: 6, state: treatmentState, container: treatmentContainer }
+        };
+
+        // --- Tool Templates ---
+        const prophylaxisHTML = `
+            <div id="prophylaxis-step-1" class="step-card">
+                <div>
+                    <div class="flex items-center text-blue-600 font-semibold mb-4"><span class="option-key">1</span><h2 class="text-xl md:text-2xl text-gray-800 font-semibold">Does the patient have a high-risk cardiac condition?</h2></div>
+                    <div class="space-y-3">
+                        <button onclick="handleDecision('risk', 'high')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">A</span>Yes, High-Risk</button>
+                        <button onclick="handleDecision('risk', 'low')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">B</span>No, Not High-Risk</button>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                        <h3 class="font-semibold text-gray-800 mb-2">High-risk conditions include:</h3>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Prosthetic cardiac valve or material for valve repair</li>
+                            <li>Previous infective endocarditis</li>
+                            <li>Cardiac transplant with valvulopathy</li>
+                            <li>Congenital heart defects, specifically:
+                                <ul class="list-['–'] list-inside ml-4 mt-1">
+                                    <li>Unrepaired cyanotic CHD, including palliative shunts</li>
+                                    <li>Repaired CHD with prosthetic material (for 6 months post-procedure or lifelong if residual defect)</li>
+                                </ul>
+                            </li>
+                             <li>Other case-dependent risk factors (immunosuppression, etc.)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div id="prophylaxis-step-2" class="step-card step-hidden">
+                <div>
+                    <div class="flex items-center text-blue-600 font-semibold mb-4"><span class="option-key">2</span><h2 class="text-xl md:text-2xl text-gray-800 font-semibold">Is the procedure invasive?</h2></div>
+                    <div class="space-y-3">
+                        <button onclick="handleDecision('procedure', 'invasive')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">A</span>Yes, Invasive</button>
+                        <button onclick="handleDecision('procedure', 'non-invasive')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">B</span>No, Non-Invasive</button>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                        <h3 class="font-semibold text-gray-800 mb-2">Invasive procedures include:</h3>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Manipulation of gingival tissue</li>
+                            <li>Manipulation of tissue in the periapical region</li>
+                            <li>Perforation of oral mucosa</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div id="prophylaxis-step-3" class="step-card step-hidden">
+                 <div>
+                    <div class="flex items-center text-blue-600 font-semibold mb-4"><span class="option-key">3</span><h2 class="text-xl md:text-2xl text-gray-800 font-semibold">Is the patient allergic to Penicillin?</h2></div>
+                    <div class="space-y-3">
+                        <button onclick="handleDecision('allergy', 'no')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">A</span>No Penicillin Allergy</button>
+                        <button onclick="handleDecision('allergy', 'yes')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">B</span>Yes, Allergy to Penicillin</button>
+                    </div>
+                </div>
+            </div>
+            <div id="prophylaxis-results" class="step-card step-hidden"></div>
+        `;
+
+        const treatmentHTML = `
+            <div id="treatment-step-1" class="step-card">
+                <div>
+                    <div class="flex items-center text-blue-600 font-semibold mb-4"><span class="option-key">1</span><h2 class="text-xl md:text-2xl text-gray-800 font-semibold">Is there suspicion or evidence of local bacterial infection?</h2></div>
+                    <div class="space-y-3">
+                        <button onclick="handleDecision('abscess', 'yes')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">A</span>Yes, present</button>
+                        <button onclick="handleDecision('abscess', 'no')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">B</span>No, not present</button>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                        <h3 class="font-semibold text-gray-800 mb-2">Examples:</h3>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Acute apical abscess</li>
+                            <li>Symptomatic periodontitis</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div id="treatment-step-2" class="step-card step-hidden">
+                <div>
+                    <div class="flex items-center text-blue-600 font-semibold mb-4"><span class="option-key">2</span><h2 class="text-xl md:text-2xl text-gray-800 font-semibold">Is definitive treatment (DCDT) available in the same visit?</h2></div>
+                    <div class="space-y-3">
+                        <button onclick="handleDecision('dcdt', 'yes')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">A</span>Yes, DCDT is available</button>
+                        <button onclick="handleDecision('dcdt', 'no')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">B</span>No, DCDT is not available</button>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                        <h3 class="font-semibold text-gray-800 mb-2">DCDT refers to:</h3>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Pulpectomy</li>
+                            <li>Pulpotomy</li>
+                            <li>Nonsurgical root canal treatment</li>
+                            <li>Incision and drainage</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div id="treatment-step-3" class="step-card step-hidden">
+                <div>
+                    <div class="flex items-center text-blue-600 font-semibold mb-4"><span class="option-key">3</span><h2 class="text-xl md:text-2xl text-gray-800 font-semibold">Is there systemic involvement (e.g., fever, malaise)?</h2></div>
+                    <div class="space-y-3">
+                        <button onclick="handleDecision('systemic', 'yes')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">A</span>Yes, systemic involvement</button>
+                        <button onclick="handleDecision('systemic', 'no')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">B</span>No systemic involvement</button>
+                    </div>
+                </div>
+            </div>
+            <div id="treatment-step-4" class="step-card step-hidden">
+                <div>
+                    <div class="flex items-center text-blue-600 font-semibold mb-4"><span class="option-key">4</span><h2 class="text-xl md:text-2xl text-gray-800 font-semibold">Is there pulp necrosis?</h2></div>
+                    <div class="space-y-3">
+                        <button onclick="handleDecision('necrosis', 'yes')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">A</span>Yes, pulp necrosis</button>
+                        <button onclick="handleDecision('necrosis', 'no')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">B</span>No, pulp is vital</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="treatment-step-6" class="step-card step-hidden">
+                <div>
+                    <div class="flex items-center text-blue-600 font-semibold mb-4"><span class="option-key">5</span><h2 class="text-xl md:text-2xl text-gray-800 font-semibold">Is the patient allergic to Penicillin?</h2></div>
+                    <div class="space-y-3">
+                        <button onclick="handleDecision('allergy', 'no')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">A</span>No Penicillin Allergy</button>
+                        <button onclick="handleDecision('allergy', 'yes')" class="option-btn w-full text-left p-4 rounded-lg flex items-center"><span class="option-key">B</span>Yes, Allergy to Penicillin</button>
+                    </div>
+                </div>
+            </div>
+            <div id="treatment-results" class="step-card step-hidden"></div>
+        `;
+
+        // --- Core App Logic ---
+        function switchTool(toolName) {
+            activeTool = toolName;
+            prophylaxisContainer.classList.toggle('tool-hidden', toolName !== 'prophylaxis');
+            treatmentContainer.classList.toggle('tool-hidden', toolName !== 'treatment');
+            toggleProphylaxisBtn.classList.toggle('active', toolName === 'prophylaxis');
+            toggleTreatmentBtn.classList.toggle('active', toolName === 'treatment');
+            resetCurrentTool();
+        }
+
+        function resetCurrentTool() {
+            if (!activeTool) return;
+            toolConfig[activeTool].state = { history: [1] };
+            showStep(1);
+        }
+        
+        function updateProgress() {
+            if (!activeTool) return;
+            const state = toolConfig[activeTool].state;
+            const totalSteps = toolConfig[activeTool].totalSteps;
+            const currentStep = state.history[state.history.length - 1];
+            const isResultStep = !document.getElementById(`${activeTool}-step-${currentStep}`);
+            const progress = isResultStep ? 100 : ((currentStep - 1) / totalSteps) * 100;
+            
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = isResultStep ? 'Recommendation' : `Step ${currentStep} of ${totalSteps}`;
+            
+            backBtn.classList.toggle('opacity-0', state.history.length <= 1);
+            resetBtn.classList.toggle('opacity-0', !isResultStep);
+        }
+
+        function showStep(stepNumber) {
+            const container = toolConfig[activeTool].container;
+            container.querySelectorAll('.step-card').forEach(el => el.classList.add('step-hidden'));
+            const stepEl = container.querySelector(`#${activeTool}-step-${stepNumber}`);
+            if (stepEl) {
+                stepEl.classList.remove('step-hidden');
+            }
+            updateProgress();
+        }
+
+        function showResult(resultHTML) {
+            const container = toolConfig[activeTool].container;
+            container.querySelectorAll('.step-card').forEach(el => el.classList.add('step-hidden'));
+            const state = toolConfig[activeTool].state;
+            state.history.push('result');
+            const resultsContainer = container.querySelector(`#${activeTool}-results`);
+            resultsContainer.innerHTML = resultHTML;
+            resultsContainer.classList.remove('step-hidden');
+            updateProgress();
+        }
+
+        function goBack() {
+            const state = toolConfig[activeTool].state;
+            if (state.history.length > 1) {
+                state.history.pop();
+                const prevStep = state.history[state.history.length - 1];
+                showStep(prevStep);
+            }
+        }
+
+        function handleDecision(question, answer) {
+            const state = toolConfig[activeTool].state;
+            state[question] = answer;
+            
+            if (activeTool === 'prophylaxis') handleProphylaxisDecision(question, answer);
+            if (activeTool === 'treatment') handleTreatmentDecision(question, answer);
+        }
+
+        // --- Prophylaxis Logic ---
+        function handleProphylaxisDecision(question, answer) {
+            const state = toolConfig.prophylaxis.state;
+            state.history.push(state.history.length + 1);
+            if (question === 'risk') {
+                if (answer === 'high') showStep(2);
+                else displayProphylaxisResult('no_risk');
+            } else if (question === 'procedure') {
+                if (answer === 'invasive') showStep(3);
+                else displayProphylaxisResult('no_procedure');
+            } else if (question === 'allergy') {
+                displayProphylaxisResult('prescribe', answer);
+            }
+        }
+
+        function displayProphylaxisResult(type, allergyStatus = 'no') {
+            let resultHTML = '';
+            const noAbxIcon = `<div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto"><svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg></div>`;
+            const abxIcon = `<div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto"><svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>`;
+            
+            switch (type) {
+                case 'no_risk':
+                    resultHTML = `<div class="result-card text-center">${noAbxIcon}<h2 class="text-2xl font-bold text-gray-800 mt-4">Prophylaxis NOT Required</h2><p class="text-gray-600 mt-2">Patient is not in a high-risk category.</p></div>`;
+                    break;
+                case 'no_procedure':
+                    resultHTML = `<div class="result-card text-center">${noAbxIcon}<h2 class="text-2xl font-bold text-gray-800 mt-4">Prophylaxis NOT Required</h2><p class="text-gray-600 mt-2">The planned procedure does not require prophylaxis.</p></div>`;
+                    break;
+                case 'prescribe':
+                    let regimenHtml = '';
+                    if (allergyStatus === 'no') {
+                        regimenHtml = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-4"><h4 class="font-bold text-blue-800">Standard Regimen:</h4><p class="text-gray-700"><strong>Amoxicillin 2g</strong> orally, 30-60 minutes before procedure.</p></div>`;
+                    } else {
+                        regimenHtml = `<div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                            <h4 class="font-bold text-orange-800">Allergy Regimen:</h4>
+                            <p class="text-gray-700"><strong>Cephalexin 2g</strong> orally, 30-60 minutes before procedure (if penicillin reaction was not anaphylactic).</p>
+                            <p class="text-gray-600 my-1"><em>OR</em></p>
+                            <p class="text-gray-700"><strong>Azithromycin/Clarithromycin 500mg</strong> orally, 30-60 minutes before procedure.</p>
+                            <p class="text-xs text-gray-500 mt-2">Note: Clindamycin is no longer recommended for IE prophylaxis (2021 AHA guidelines) due to risk of C. difficile infection.</p>
+                        </div>`;
+                    }
+                    resultHTML = `<div class="result-card text-center">${abxIcon}<h2 class="text-2xl font-bold text-gray-800 mt-4" style="color: #284766;">Prophylaxis REQUIRED</h2><div class="text-left mt-4">${regimenHtml}</div></div>`;
+                    break;
+            }
+            showResult(resultHTML);
+        }
+
+        // --- Treatment Logic ---
+        function handleTreatmentDecision(question, answer) {
+            const state = toolConfig.treatment.state;
+            state[question] = answer;
+            state.history.push(state.history.length + 1);
+
+            if (question === 'abscess') {
+                if (answer === 'yes') {
+                    showStep(2);
+                } else {
+                    displayTreatmentResult('no_abx');
+                }
+            } else if (question === 'dcdt') {
+                showStep(3);
+            } else if (question === 'systemic') {
+                if (answer === 'yes') { // systemic involvement
+                    showStep(6); // Always go to allergy question if systemic involvement
+                } else { // no systemic involvement
+                    if (state.dcdt === 'yes') {
+                        displayTreatmentResult('no_abx_dcdt_available');
+                    } else {
+                        // DCDT not available, continue the triage
+                        showStep(4);
+                    }
+                }
+            } else if (question === 'necrosis') {
+                if (answer === 'yes') {
+                    showStep(6); // Go to allergy question if pulp necrosis is present
+                } else {
+                    displayTreatmentResult('no_abx'); // If no necrosis, and no other conditions, no abx
+                }
+            } else if (question === 'allergy') {
+                displayTreatmentResult('prescribe_abx', answer);
+            }
+        }
+
+        function displayTreatmentResult(type, allergyStatus = 'no') {
+            let resultHTML = '';
+            const noAbxIcon = `<div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto"><svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg></div>`;
+            const abxIcon = `<div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto"><svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>`;
+
+            switch (type) {
+                case 'no_abx':
+                    resultHTML = `<div class="result-card text-center">${noAbxIcon}<h2 class="text-2xl font-bold text-gray-800 mt-4">Antibiotics NOT Recommended</h2><p class="text-gray-600 mt-2 max-w-lg mx-auto">Definitive conservative dental treatment (DCDT) is recommended.</p></div>`;
+                    break;
+                case 'no_abx_dcdt_available':
+                    resultHTML = `<div class="result-card text-center">${noAbxIcon}<h2 class="text-2xl font-bold text-gray-800 mt-4">Antibiotics NOT Recommended</h2><p class="text-gray-600 mt-2 max-w-lg mx-auto">Definitive conservative dental treatment (DCDT) is available and sufficient.</p></div>`;
+                    break;
+                case 'prescribe_abx':
+                    let regimenHtml = '';
+                    if (allergyStatus === 'no') {
+                        regimenHtml = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-4"><h4 class="font-bold text-blue-800">First-Line Therapy:</h4><p class="text-gray-700"><strong>Amoxicillin 500mg</strong>, 1 tab TID for 3-7 days.</p><p class="text-gray-600 mt-1"><em>If no improvement by day 3, change to</em></p><p class="text-gray-700"><strong>Amoxicillin/clavulanate 500/125 mg</strong>, 1 tab TID for 7 days.</p><p class="text-gray-600 mt-1"><em>OR add</em></p><p class="text-gray-700"><strong>Metronidazole 500 mg</strong>, 1 tab TID for 7 days.</p></div>`;
+                    } else {
+                        regimenHtml = `<div class="bg-orange-50 border border-orange-200 rounded-lg p-4"><h4 class="font-bold text-orange-800">Alternatives for Penicillin Allergy:</h4><p class="text-gray-700"><strong>Cephalexin 500mg</strong>, 1 tab QID for 3-7 days (if penicillin reaction was not anaphylactic)</p><p class="text-gray-600 my-1"><em>OR</em> <strong>Clindamycin 450mg</strong>, 1 tab TID for 3-7 days</p><p class="text-gray-600 my-1"><em>OR</em> <strong>Azithromycin 500mg</strong> day 1, then <strong>250mg</strong> daily for 4 days</p><p class="text-gray-600 mt-1"><em>If no improvement by day 3, add</em></p><p class="text-gray-700"><strong>Metronidazole 500 mg</strong>, 1 tab TID for 7 days.</p></div>`;
+                    }
+                    resultHTML = `<div class="result-card text-center">${abxIcon}<h2 class="text-2xl font-bold text-gray-800 mt-4" style="color: #284766;">Antibiotic Treatment Recommended</h2><p class="text-gray-600 mt-2 mb-4 max-w-lg mx-auto">Prescribe and ensure urgent referral for DCDT.</p><div class="text-left">${regimenHtml}</div></div>`;
+                    break;
+            }
+            showResult(resultHTML);
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            prophylaxisContainer.innerHTML = prophylaxisHTML;
+            treatmentContainer.innerHTML = treatmentHTML;
+            switchTool('prophylaxis'); // Start with prophylaxis tool active
+        });
+    </script>
+</body>
+</html>
