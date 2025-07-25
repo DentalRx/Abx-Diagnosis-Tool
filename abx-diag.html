@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unified Dental Decision Tool</title>
+    <title>Unified Dental Antibiotic Decision Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -446,7 +446,7 @@
                 case 'prescribe_abx':
                     let regimenHtml = '';
                     if (allergyStatus === 'no') {
-                        regimenHtml = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-4"><h4 class="font-bold text-blue-800">First-Line Therapy:</h4><p class="text-gray-700"><strong>Amoxicillin 500mg</strong>, 1 tab TID for 3-7 days.</p><p class="text-gray-600 mt-1"><em>If no improvement by day 3, change to</em></p><p class="text-gray-700"><strong>Amoxicillin/clavulanate 500/125 mg</strong>, 1 tab TID for 7 days.</p><p class="text-gray-600 mt-1"><em>OR add</em></p><p class="text-gray-700"><strong>Metronidazole 500 mg</strong>, 1 tab TID for 7 days.</p></div>`;
+                        regimenHtml = `<div class="bg-blue-50 border border-blue-200 rounded-lg p-4"><h4 class="font-bold text-blue-800">First-Line Therapy:</h4><p class="text-gray-700"><strong>Amoxicillin 500mg</strong>, 1 tab TID for 5 days.</p><p class="text-gray-600 mt-1"><em>If no improvement by day 3, change to</em></p><p class="text-gray-700"><strong>Amoxicillin/clavulanate 500/125 mg</strong>, 1 tab TID for 7 days.</p><p class="text-gray-600 mt-1"><em>OR add</em></p><p class="text-gray-700"><strong>Metronidazole 500 mg</strong>, 1 tab TID for 7 days.</p></div>`;
                     } else {
                         regimenHtml = `<div class="bg-orange-50 border border-orange-200 rounded-lg p-4"><h4 class="font-bold text-orange-800">Alternatives for Penicillin Allergy:</h4><p class="text-gray-700"><strong>Cephalexin 500mg</strong>, 1 tab QID for 3-7 days (if penicillin reaction was not anaphylactic)</p><p class="text-gray-600 my-1"><em>OR</em> <strong>Clindamycin 450mg</strong>, 1 tab TID for 3-7 days</p><p class="text-gray-600 my-1"><em>OR</em> <strong>Azithromycin 500mg</strong> day 1, then <strong>250mg</strong> daily for 4 days</p><p class="text-gray-600 mt-1"><em>If no improvement by day 3, add</em></p><p class="text-gray-700"><strong>Metronidazole 500 mg</strong>, 1 tab TID for 7 days.</p></div>`;
                     }
